@@ -1,6 +1,7 @@
 # Markdown
 
-Render Markdown content to JSX using Lockness UI components.
+Render Markdown content to JSX with a plain-HTML default component map
+(standalone), or with `@lockness/ui` components via `@lockness/ui/markdown`.
 
 This package provides seamless integration between Markdown documentation and
 the Lockness design system, automatically converting Markdown content into
@@ -8,11 +9,50 @@ beautiful, themed JSX components.
 
 ## Features
 
-- **UI Component Integration**: Renders Markdown using `@lockness/ui` components
+- **Optional design-system output**: render with `@lockness/ui` components via
+  `@lockness/ui/markdown`
 - **GFM Support**: Full GitHub Flavored Markdown support via `@libs/markdown`
 - **Syntax Highlighting**: Code blocks with automatic syntax highlighting
 - **Customizable**: Override any component with your own implementation
 - **Zero CSS Required**: Styles come from your existing Lockness theme
+
+## Security: URI-scheme allowlist
+
+Link `href` and image `src` are **scheme-sanitised at parse time** (issue #148).
+Only `http`, `https`, `mailto`, and schemeless URIs (relative paths, fragments,
+queries, `//host`) are kept; any other scheme — notably `javascript:`, `data:`,
+`vbscript:`, `file:` — is neutralised to an **empty** `href`/`src`, so the link
+text and image `alt` are preserved but nothing dangerous is clickable or loaded.
+
+```text
+[click](javascript:alert(1))          ->  <a href="">click</a>
+![logo](data:text/html,<script>…)     ->  <img src="" alt="logo">
+[docs](/guide)  ·  [mail](mailto:a@b) ->  unchanged
+```
+
+The check is case-insensitive and resistant to control-character, whitespace and
+HTML-entity obfuscation of the scheme. It lives in one place — `sanitizeUrl` in
+`parser.ts` — so it applies to **every** renderer (the plain default map and the
+styled `@lockness/ui/markdown` map alike); component overrides do not need to,
+and must not, re-implement it.
+
+**Scope of the guarantee.** `parseHtmlToAst` scheme-sanitises `LinkNode.href`
+and `ImageNode.src`, **and** allowlist-sanitises `CodeBlockNode.html` — the
+`dangerouslySetInnerHTML` sink the styled map's highlighted code block uses.
+`sanitizeCodeHtml` (parser.ts) escapes every `<`/`>` in that field and re-admits
+only the highlighter's own `<span class="hljs-…">`/`</span>` structure, so no
+author element survives even if the upstream engine failed to escape it, while
+syntax highlighting is preserved. This **closes deferred item S4** (raised in
+the #80 blog plan, tracked as #159).
+
+The copy fields — `CodeBlockNode.value` and the styled block's `data-plain`
+attribute — need no allowlist: they are plain text, JSX-escaped by the runtime,
+never a raw sink. Do not mirror the code-HTML treatment onto them.
+
+**One residual, out of scope of #159.** The guarantee is anchored to the parse
+path. A caller that hand-builds an AST, or passes untrusted HTML **directly** to
+the exported `HighlightedCodeBlock html={…}` component, bypasses the parser and
+must not assume that field is safe.
 
 ## Installation
 

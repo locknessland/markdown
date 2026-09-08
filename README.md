@@ -1,6 +1,8 @@
 # @lockness/markdown
 
-Markdown to JSX renderer using Lockness UI components.
+Markdown to JSX renderer with a plain-HTML default component map. Renders
+standalone with no UI-library dependency; opt into design-system output via
+`@lockness/ui/markdown`.
 
 This package provides seamless integration between Markdown documentation and
 the Lockness design system, automatically converting Markdown content into
@@ -8,8 +10,8 @@ beautiful, themed JSX components.
 
 ## Features
 
-- 🎨 **UI Component Integration**: Renders Markdown using `@lockness/ui`
-  components
+- 🎨 **Optional design-system output**: pair with `@lockness/ui/markdown` to
+  render using `@lockness/ui` components
 - 📝 **GFM Support**: Full GitHub Flavored Markdown support via `@libs/markdown`
 - 🌈 **Syntax Highlighting**: Code blocks with automatic syntax highlighting
 - 🔧 **Customizable**: Override any component with your own implementation
@@ -130,6 +132,22 @@ Low-level function to parse HTML into an AST.
 - `html: string` - HTML string to parse
 
 **Returns:** `MarkdownNode[]`
+
+## Security
+
+Two guarantees are enforced at parse time, both in `parser.ts` and nowhere else:
+
+- **Link/image URI schemes** — only `http`, `https`, `mailto` and schemeless
+  URIs are kept; `javascript:`, `data:` and other schemes are neutralised to an
+  empty attribute (the link text / image `alt` are preserved).
+- **Code-block HTML** — `CodeBlockNode.html` (the raw-HTML sink the styled
+  `@lockness/ui/markdown` map feeds into `dangerouslySetInnerHTML`) is reduced
+  to allowlisted highlighter markup only: every `<`/`>` is escaped and only the
+  highlighter's own `<span class="hljs-…">`/`</span>` structure is re-admitted,
+  so no author element can survive — independent of the upstream engine's own
+  escaping (issue #159). Syntax highlighting is preserved.
+
+See [docs/DOCS.md](docs/DOCS.md#security-uri-scheme-allowlist).
 
 ## License
 
